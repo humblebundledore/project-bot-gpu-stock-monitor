@@ -14,8 +14,8 @@ from gpu_monitor.models import Product, StockStatus, StoredProduct
 
 def make_product(
     status: StockStatus = StockStatus.IN_STOCK,
-    price: float = 1200.0,
-    family: str = "RTX_5080",
+    price: float = 1000.0,
+    family: str = "RTX_5080_FE",
 ) -> Product:
     return Product(
         retailer="LDLC",
@@ -33,7 +33,7 @@ def make_product(
 
 def make_stored(
     status: StockStatus = StockStatus.OUT_OF_STOCK,
-    price: float = 1200.0,
+    price: float = 1000.0,
     last_alerted_at: datetime | None = None,
 ) -> StoredProduct:
     return StoredProduct(
@@ -41,7 +41,7 @@ def make_stored(
         retailer="LDLC",
         name="ASUS TUF Gaming RTX 5080 OC",
         url="https://ldlc.com/fiche/PB0001.html",
-        gpu_family="RTX_5080",
+        gpu_family="RTX_5080_FE",
         status=status,
         price_eur=price,
         availability_text="Rupture",
@@ -55,61 +55,61 @@ def make_stored(
 
 class TestShouldAlert:
     def test_new_product_in_stock_triggers_alert(self, sample_config):
-        product = make_product(StockStatus.IN_STOCK, 1200.0)
+        product = make_product(StockStatus.IN_STOCK, 1000.0)
         do_alert, reason = should_alert(product, None, True, sample_config)
         assert do_alert is True
         assert "new" in reason.lower()
 
     def test_new_product_out_of_stock_no_alert(self, sample_config):
-        product = make_product(StockStatus.OUT_OF_STOCK, 1200.0)
+        product = make_product(StockStatus.OUT_OF_STOCK, 1000.0)
         do_alert, reason = should_alert(product, None, True, sample_config)
         assert do_alert is False
 
     def test_status_transition_triggers_alert(self, sample_config):
-        product = make_product(StockStatus.IN_STOCK, 1200.0)
-        prev = make_stored(StockStatus.OUT_OF_STOCK, 1200.0)
+        product = make_product(StockStatus.IN_STOCK, 1000.0)
+        prev = make_stored(StockStatus.OUT_OF_STOCK, 1000.0)
         do_alert, reason = should_alert(product, prev, False, sample_config)
         assert do_alert is True
         assert "OUT_OF_STOCK" in reason
 
     def test_no_status_change_no_alert(self, sample_config):
-        product = make_product(StockStatus.IN_STOCK, 1200.0)
-        prev = make_stored(StockStatus.IN_STOCK, 1200.0)
+        product = make_product(StockStatus.IN_STOCK, 1000.0)
+        prev = make_stored(StockStatus.IN_STOCK, 1000.0)
         do_alert, reason = should_alert(product, prev, False, sample_config)
         assert do_alert is False
 
     def test_price_above_ceiling_no_alert(self, sample_config):
-        # RTX 5080 ceiling is 1500€
-        product = make_product(StockStatus.IN_STOCK, 1600.0)
+        # RTX 5080 FE ceiling is 1119€
+        product = make_product(StockStatus.IN_STOCK, 1200.0)
         do_alert, reason = should_alert(product, None, True, sample_config)
         assert do_alert is False
         assert "ceiling" in reason
 
     def test_price_at_ceiling_triggers_alert(self, sample_config):
         # Exactly at ceiling = allowed
-        product = make_product(StockStatus.IN_STOCK, 1500.0)
+        product = make_product(StockStatus.IN_STOCK, 1119.0)
         do_alert, reason = should_alert(product, None, True, sample_config)
         assert do_alert is True
 
     def test_preorder_triggers_alert(self, sample_config):
-        product = make_product(StockStatus.PREORDER, 1200.0)
-        prev = make_stored(StockStatus.OUT_OF_STOCK, 1200.0)
+        product = make_product(StockStatus.PREORDER, 1000.0)
+        prev = make_stored(StockStatus.OUT_OF_STOCK, 1000.0)
         do_alert, reason = should_alert(product, prev, False, sample_config)
         assert do_alert is True
 
     def test_backorder_triggers_alert(self, sample_config):
-        product = make_product(StockStatus.BACKORDER, 1200.0)
-        prev = make_stored(StockStatus.UNKNOWN, 1200.0)
+        product = make_product(StockStatus.BACKORDER, 1000.0)
+        prev = make_stored(StockStatus.UNKNOWN, 1000.0)
         do_alert, reason = should_alert(product, prev, False, sample_config)
         assert do_alert is True
 
     def test_price_drop_below_ceiling_triggers(self, sample_config):
-        # Was 1600€ (above ceiling 1500€), now 1450€ (below ceiling)
-        product = make_product(StockStatus.IN_STOCK, 1450.0)
-        prev = make_stored(StockStatus.IN_STOCK, 1600.0)
+        # Was 1200€ (above ceiling 1119€), now 1100€ (below ceiling)
+        product = make_product(StockStatus.IN_STOCK, 1100.0)
+        prev = make_stored(StockStatus.IN_STOCK, 1200.0)
         do_alert, reason = should_alert(product, prev, False, sample_config)
         assert do_alert is True
-        assert "drop" in reason.lower() or "1600" in reason
+        assert "drop" in reason.lower() or "1200" in reason
 
     def test_product_id_stable(self):
         p1 = make_product()
@@ -117,18 +117,18 @@ class TestShouldAlert:
         assert p1.product_id == p2.product_id
 
     def test_alert_key_includes_status(self):
-        p_in = make_product(StockStatus.IN_STOCK, 1200.0)
-        p_out = make_product(StockStatus.OUT_OF_STOCK, 1200.0)
+        p_in = make_product(StockStatus.IN_STOCK, 1000.0)
+        p_out = make_product(StockStatus.OUT_OF_STOCK, 1000.0)
         assert p_in.alert_key != p_out.alert_key
 
     def test_alert_key_price_bucketed(self):
         # Prices in same bucket → same key
-        p1 = make_product(StockStatus.IN_STOCK, 1200.0)
-        p2 = make_product(StockStatus.IN_STOCK, 1205.0)
+        p1 = make_product(StockStatus.IN_STOCK, 1000.0)
+        p2 = make_product(StockStatus.IN_STOCK, 1005.0)
         assert p1.alert_key == p2.alert_key
 
         # Different bucket → different key
-        p3 = make_product(StockStatus.IN_STOCK, 1210.0)
+        p3 = make_product(StockStatus.IN_STOCK, 1010.0)
         assert p1.alert_key != p3.alert_key
 
 

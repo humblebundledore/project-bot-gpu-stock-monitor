@@ -5,7 +5,6 @@ discord:
   guild_id: "1478024285766422550"
   alert_channel: "gpu-stock-france"
   auto_create_channel: true
-  # Set to true to post a daily digest at digest_time (HH:MM UTC)
   daily_digest: true
   digest_time: "07:00"
 
@@ -13,14 +12,14 @@ database:
   path: "data/gpu_monitor.db"
 
 polling:
-  interval_seconds: 900      # 15 minutes base
-  jitter_seconds: 120        # ±2 minutes per retailer
-  cooldown_seconds: 3600     # 1h cooldown before re-alerting same product/status
+  interval_seconds: 300       # 5 minutes
+  jitter_seconds: 60          # ±1 minute per retailer
+  cooldown_seconds: 3600      # 1h cooldown before re-alerting same product/status
 
 http:
   timeout_seconds: 30
   max_retries: 3
-  retry_backoff_base: 2.0    # exponential: 2, 4, 8 seconds
+  retry_backoff_base: 2.0
   user_agents:
     - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
     - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
@@ -28,89 +27,51 @@ http:
     - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
 
 gpu_targets:
-  - family: "RTX_5080"
-    display_name: "GeForce RTX 5080 16GB"
-    price_ceiling_eur: 1500.0
+  # NVIDIA Founders Edition — sold exclusively on the NVIDIA France store
+  - family: "RTX_5080_FE"
+    display_name: "GeForce RTX 5080 Founders Edition"
+    price_ceiling_eur: 1119.00   # MSRP France
     keywords_include:
       - "RTX 5080"
-      - "GeForce RTX 5080"
-    keywords_exclude:
-      - "laptop"
-      - "portable"
-      - "mobile"
-      - "waterblock"
-      - "water block"
-      - "monoblock"
-      - "refurb"
-      - "occasion"
-      - "bundle"
-      - "PC complet"
-      - "ordinateur"
-      - "riser"
-      - "adaptateur"
+    keywords_exclude: []
 
-  - family: "RX_9070_XT"
-    display_name: "Radeon RX 9070 XT 16GB"
-    price_ceiling_eur: 850.0
+  - family: "RTX_5090_FE"
+    display_name: "GeForce RTX 5090 Founders Edition"
+    price_ceiling_eur: 2059.00   # MSRP France
     keywords_include:
-      - "RX 9070 XT"
-      - "Radeon RX 9070 XT"
-    keywords_exclude:
-      - "laptop"
-      - "portable"
-      - "mobile"
-      - "waterblock"
-      - "water block"
-      - "monoblock"
-      - "refurb"
-      - "occasion"
-      - "bundle"
-      - "PC complet"
-      - "ordinateur"
-      - "riser"
-      - "adaptateur"
-      - "RX 9070 "      # must not catch plain 9070 (non-XT)
+      - "RTX 5090"
+    keywords_exclude: []
 
-  - family: "RTX_5070_TI"
-    display_name: "GeForce RTX 5070 Ti 16GB"
-    price_ceiling_eur: 950.0
+  # Specific AIB model via French retailers
+  - family: "RX_9070_XT_SAPPHIRE_PURE"
+    display_name: "Sapphire Pure Radeon RX 9070 XT Gaming OC 16GB"
+    price_ceiling_eur: 649.00    # MSRP France
     keywords_include:
-      - "RTX 5070 Ti"
-      - "GeForce RTX 5070 Ti"
+      - "Sapphire"
+      - "Pure"
+      - "9070 XT"
     keywords_exclude:
       - "laptop"
       - "portable"
-      - "mobile"
-      - "waterblock"
-      - "water block"
-      - "monoblock"
-      - "refurb"
-      - "occasion"
-      - "bundle"
-      - "PC complet"
-      - "ordinateur"
-      - "riser"
-      - "adaptateur"
-      - "RTX 5070 Ti Super"   # future-proof
-
-preferred_brands:
-  - ASUS
-  - MSI
-  - Gigabyte
-  - Sapphire
-  - PowerColor
-  - XFX
-  - Gainward
 
 retailers:
+  # NVIDIA Founders Edition inventory API — covers RTX 5080 FE + RTX 5090 FE
+  nvidia_fr:
+    enabled: true
+    name: "NVIDIA France"
+    base_url: "https://store.nvidia.com/fr-fr"
+    search_urls:
+      - "https://api.store.nvidia.com/partner/v1/feinventory?locale=fr-fr"
+    use_browser: false
+    country: "FR"
+
+  # French retailers for Sapphire Pure RX 9070 XT
   ldlc:
     enabled: true
     name: "LDLC"
     base_url: "https://www.ldlc.com"
     search_urls:
-      - "https://www.ldlc.com/recherche/RTX+5080/"
       - "https://www.ldlc.com/recherche/RX+9070+XT/"
-      - "https://www.ldlc.com/recherche/RTX+5070+Ti/"
     use_browser: false
     country: "FR"
 
@@ -119,44 +80,8 @@ retailers:
     name: "TopAchat"
     base_url: "https://www.topachat.com"
     search_urls:
-      - "https://www.topachat.com/pages/recherche.php?cat=composants&mc=gp&q=RTX+5080"
       - "https://www.topachat.com/pages/recherche.php?cat=composants&mc=gp&q=RX+9070+XT"
-      - "https://www.topachat.com/pages/recherche.php?cat=composants&mc=gp&q=RTX+5070+Ti"
     use_browser: false
-    country: "FR"
-
-  materiel_net:
-    enabled: true
-    name: "Materiel.net"
-    base_url: "https://www.materiel.net"
-    search_urls:
-      - "https://www.materiel.net/recherche/+RTX+5080/"
-      - "https://www.materiel.net/recherche/+RX+9070+XT/"
-      - "https://www.materiel.net/recherche/+RTX+5070+Ti/"
-    use_browser: false
-    country: "FR"
-
-  alternate:
-    enabled: true
-    name: "Alternate.fr"
-    base_url: "https://www.alternate.fr"
-    search_urls:
-      - "https://www.alternate.fr/list/?q=RTX+5080&filter=categoryId:FFFFFFBF&lc=fr"
-      - "https://www.alternate.fr/list/?q=RX+9070+XT&filter=categoryId:FFFFFFBF&lc=fr"
-      - "https://www.alternate.fr/list/?q=RTX+5070+Ti&filter=categoryId:FFFFFFBF&lc=fr"
-    use_browser: true   # JS-rendered listing
-    country: "DE"       # German retailer, ships to FR
-    ships_to_france: true
-
-  rueducommerce:
-    enabled: true
-    name: "Rue du Commerce"
-    base_url: "https://www.rueducommerce.fr"
-    search_urls:
-      - "https://www.rueducommerce.fr/recherche?q=RTX+5080&universe=informatique"
-      - "https://www.rueducommerce.fr/recherche?q=RX+9070+XT&universe=informatique"
-      - "https://www.rueducommerce.fr/recherche?q=RTX+5070+Ti&universe=informatique"
-    use_browser: true
     country: "FR"
 
 logging:

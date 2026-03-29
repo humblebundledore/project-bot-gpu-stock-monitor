@@ -115,6 +115,8 @@ class TopAchatRetailer(BaseRetailer):
         if isinstance(offers, list):
             offers = offers[0] if offers else {}
         price_str = str(offers.get("price", ""))
+        currency = offers.get("priceCurrency", "EUR")
+        price_text = f"{price_str} {"€" if currency == "EUR" else currency}" if price_str else ""
         avail = offers.get("availability", "")
         avail_map = {
             "InStock": "En stock",
@@ -123,4 +125,4 @@ class TopAchatRetailer(BaseRetailer):
             "BackOrder": "Sur commande",
         }
         status_text = avail_map.get(avail.split("/")[-1], avail)
-        return self._make_product(name, url, status_text, price_str, targets)
+        return self._make_product(name, url, status_text, price_text, targets)

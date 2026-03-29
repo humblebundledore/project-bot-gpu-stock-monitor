@@ -120,6 +120,8 @@ class LDLCRetailer(BaseRetailer):
         if isinstance(offers, list):
             offers = offers[0] if offers else {}
         price_str = str(offers.get("price", ""))
+        currency = offers.get("priceCurrency", "EUR")
+        price_text = f"{price_str} {"€" if currency == "EUR" else currency}" if price_str else ""
         availability = offers.get("availability", "")
         # Map schema.org availability to human-readable
         avail_map = {
@@ -133,4 +135,4 @@ class LDLCRetailer(BaseRetailer):
             "https://schema.org/BackOrder": "Sur commande",
         }
         status_text = avail_map.get(availability, availability)
-        return self._make_product(name, url, status_text, price_str, targets)
+        return self._make_product(name, url, status_text, price_text, targets)
