@@ -1,0 +1,3 @@
+# Fixtures directory
+# HTML snapshots for parser tests go here.
+# Generate with: make fixtures (see Makefile or README)
