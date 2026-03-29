@@ -39,3 +39,6 @@ tests/fixtures/*.html
 # Secrets — never commit config with real token
 # Use GitHub Secrets or env vars instead
 # config/config.yaml should NOT contain production tokens in VCS
+.env
+.env.*
+!.env.example

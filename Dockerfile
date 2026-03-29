@@ -26,15 +26,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python deps
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]"
+# Copy source and package files
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+# Install Python deps (non-editable for production correctness)
+RUN pip install --no-cache-dir ".[dev]"
 
 # Install Playwright browser
 RUN playwright install chromium
 
-# Copy source
-COPY src/ ./src/
+# Copy config
 COPY config/ ./config/
 
 # Create data and log directories

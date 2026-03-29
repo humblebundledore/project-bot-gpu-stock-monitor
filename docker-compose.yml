@@ -7,15 +7,15 @@ services:
       dockerfile: Dockerfile
     container_name: gpu-stock-monitor
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       GPU_MONITOR_CONFIG: /app/config/config.yaml
       PYTHONUNBUFFERED: "1"
     volumes:
       # Persist DB and logs outside the container
-      - ./data:/app/data
-      - ./logs:/app/logs
-      # Mount config for easy editing without rebuild
-      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./data:/app/data:z
+      - ./logs:/app/logs:z
     command: run-daemon
     healthcheck:
       test: ["CMD", "python", "-c", "import sqlite3; sqlite3.connect('/app/data/gpu_monitor.db').close()"]
@@ -31,11 +31,12 @@ services:
       dockerfile: Dockerfile
     profiles:
       - check
+    env_file:
+      - .env
     environment:
       GPU_MONITOR_CONFIG: /app/config/config.yaml
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./data:/app/data:z
+      - ./logs:/app/logs:z
     command: check-once
     restart: "no"
