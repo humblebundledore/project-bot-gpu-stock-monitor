@@ -24,10 +24,13 @@ class NvidiaFrRetailer(BaseRetailer):
         return "nvidia_fr"
 
     async def fetch(self, url: str) -> str:
+        # NVIDIA's inventory API rejects HTTP/2 with StreamReset (error_code=2);
+        # force HTTP/1.1 for this retailer.
         resp = await self._http.get(
             url,
             extra_headers={"Accept": "application/json"},
             politeness_delay=0.5,
+            http2=False,
         )
         return resp.text
 

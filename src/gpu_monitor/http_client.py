@@ -61,6 +61,7 @@ class HttpClient:
         *,
         politeness_delay: float = 1.5,
         extra_headers: dict[str, str] | None = None,
+        http2: bool = True,
     ) -> httpx.Response:
         if self._client is None:
             raise RuntimeError("HttpClient not started. Use as async context manager.")
@@ -69,45 +70,62 @@ class HttpClient:
         if extra_headers:
             headers.update(extra_headers)
 
+        # If the caller opts out of HTTP/2, use a one-shot HTTP/1.1 client
+        # instead of the shared client (e.g. NVIDIA API rejects h2 with StreamReset).
+        _client: httpx.AsyncClient
+        _owned = not http2
+        if _owned:
+            _client = httpx.AsyncClient(
+                timeout=self._config.http_timeout,
+                follow_redirects=True,
+                http2=False,
+            )
+        else:
+            _client = self._client  # type: ignore[assignment]
+
         last_exc: Exception | None = None
-        for attempt in range(self._config.http_max_retries + 1):
-            if attempt > 0:
-                backoff = self._config.http_retry_backoff ** attempt
-                jitter = random.uniform(0, backoff * 0.3)
-                delay = backoff + jitter
-                logger.debug("Retry %d for %s — waiting %.1fs", attempt, url, delay)
-                await asyncio.sleep(delay)
+        try:
+            for attempt in range(self._config.http_max_retries + 1):
+                if attempt > 0:
+                    backoff = self._config.http_retry_backoff ** attempt
+                    jitter = random.uniform(0, backoff * 0.3)
+                    delay = backoff + jitter
+                    logger.debug("Retry %d for %s — waiting %.1fs", attempt, url, delay)
+                    await asyncio.sleep(delay)
 
-            try:
-                # Politeness delay before each request
-                if attempt == 0 and politeness_delay > 0:
-                    await asyncio.sleep(politeness_delay + random.uniform(0, 1.0))
+                try:
+                    # Politeness delay before each request
+                    if attempt == 0 and politeness_delay > 0:
+                        await asyncio.sleep(politeness_delay + random.uniform(0, 1.0))
 
-                resp = await self._client.get(url, headers=headers)
+                    resp = await _client.get(url, headers=headers)
 
-                if resp.status_code == 429:
-                    retry_after = int(resp.headers.get("Retry-After", "60"))
-                    logger.warning("Rate-limited by %s — sleeping %ds", url, retry_after)
-                    await asyncio.sleep(retry_after)
-                    continue
+                    if resp.status_code == 429:
+                        retry_after = int(resp.headers.get("Retry-After", "60"))
+                        logger.warning("Rate-limited by %s — sleeping %ds", url, retry_after)
+                        await asyncio.sleep(retry_after)
+                        continue
 
-                if resp.status_code in (503, 502, 504):
-                    logger.warning("Server error %d from %s", resp.status_code, url)
-                    last_exc = httpx.HTTPStatusError(
-                        f"HTTP {resp.status_code}", request=resp.request, response=resp
-                    )
-                    continue
+                    if resp.status_code in (503, 502, 504):
+                        logger.warning("Server error %d from %s", resp.status_code, url)
+                        last_exc = httpx.HTTPStatusError(
+                            f"HTTP {resp.status_code}", request=resp.request, response=resp
+                        )
+                        continue
 
-                resp.raise_for_status()
-                return resp
+                    resp.raise_for_status()
+                    return resp
 
-            except (httpx.TimeoutException, httpx.ConnectError) as e:
-                logger.warning("Network error on %s (attempt %d): %s", url, attempt + 1, e)
-                last_exc = e
-            except httpx.HTTPStatusError as e:
-                logger.warning("HTTP %d on %s", e.response.status_code, url)
-                last_exc = e
-                if e.response.status_code < 500:
-                    raise  # Don't retry 4xx errors
+                except (httpx.TimeoutException, httpx.ConnectError) as e:
+                    logger.warning("Network error on %s (attempt %d): %s", url, attempt + 1, e)
+                    last_exc = e
+                except httpx.HTTPStatusError as e:
+                    logger.warning("HTTP %d on %s", e.response.status_code, url)
+                    last_exc = e
+                    if e.response.status_code < 500:
+                        raise  # Don't retry 4xx errors
+        finally:
+            if _owned:
+                await _client.aclose()
 
         raise last_exc or RuntimeError(f"All retries failed for {url}")
